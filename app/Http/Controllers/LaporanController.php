@@ -71,7 +71,7 @@ class LaporanController extends Controller
         // ==============================
         $laporans = $query
             ->orderBy('tanggal', 'desc')
-            ->orderBy('jam_absen', 'asc')
+            ->orderBy('jam_masuk', 'asc')
             ->get();
 
         // ==============================
@@ -177,7 +177,7 @@ class LaporanController extends Controller
         // ==============================
         $laporans = $query
             ->orderBy('tanggal', 'desc')
-            ->orderBy('jam_absen', 'asc')
+            ->orderBy('jam_masuk', 'asc')
             ->get();
 
         // ==============================

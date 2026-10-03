@@ -128,6 +128,9 @@ class AbsensiController extends Controller
             'uid_rfid' => 'required|string'
         ]);
 
+        \Illuminate\Support\Facades\Cache::put('last_scanned_rfid', $request->uid_rfid, 600);
+        \Illuminate\Support\Facades\Log::info(">>> SCAN RFID DITERIMA: " . $request->uid_rfid);
+
         // =================================================
         // WAKTU SEKARANG
         // =================================================
@@ -198,6 +201,9 @@ class AbsensiController extends Controller
             'tanggal' => 'required|date',
             'jam_absen' => 'required|date_format:H:i:s',
         ]);
+
+        \Illuminate\Support\Facades\Cache::put('last_scanned_rfid', $request->uid_rfid, 600);
+        \Illuminate\Support\Facades\Log::info(">>> SYNC RFID DITERIMA: " . $request->uid_rfid);
 
         // =================================================
         // WAKTU ASLI SAAT RFID DITEMPEL
@@ -310,7 +316,8 @@ class AbsensiController extends Controller
 
                     $status = $this->hitungStatus(
                         $kegiatan->jam_mulai,
-                        $jamScan
+                        $jamScan,
+                        $kegiatan->toleransi_hadir_menit ?? null
                     );
 
                     $absensi = Absensi::create([
@@ -466,51 +473,28 @@ class AbsensiController extends Controller
                     )
             ) {
 
-                $jamMulai =
+                $schedule =
                     $this->prayerTimeService
-                        ->getPrayerTime(
+                        ->getPrayerScheduleDetails(
                             $kegiatan->nama_kegiatan,
                             $waktu
                         );
 
-                if (!$jamMulai) {
+                if (!$schedule || !$schedule['status_aktif']) {
                     continue;
                 }
 
-                // =================================================
-                // WAKTU MULAI SHALAT
-                // =================================================
+                $mulaiPresensi = $schedule['waktu_mulai_presensi'];
+                $tutupScan = $schedule['waktu_tutup_scan'];
 
-                $mulai = Carbon::createFromFormat(
-                    'Y-m-d H:i:s',
-                    $waktu->format('Y-m-d') .
-                    ' ' .
-                    $jamMulai,
-                    'Asia/Jakarta'
-                );
-
-                // =================================================
-                // BATAS SCAN
-                //
-                // Sampai 30 menit setelah waktu mulai
-                // =================================================
-
-                $batasScan = $mulai
-                    ->copy()
-                    ->addMinutes(30);
-
+                // Scan hanya sah dalam rentang: [jam_mulai_presensi, jam_tutup_scan]
                 if (
-                    $waktu->greaterThanOrEqualTo($mulai) &&
-                    $waktu->lessThanOrEqualTo($batasScan)
+                    $waktu->greaterThanOrEqualTo($mulaiPresensi) &&
+                    $waktu->lessThanOrEqualTo($tutupScan)
                 ) {
-
-                    // Set waktu mulai dinamis
-                    $kegiatan->jam_mulai =
-                        $jamMulai;
-
-                    // Untuk kebutuhan proses
-                    $kegiatan->jam_selesai =
-                        $batasScan->format('H:i:s');
+                    $kegiatan->jam_mulai = $schedule['jam_mulai_presensi'];
+                    $kegiatan->jam_selesai = $schedule['jam_tutup_scan'];
+                    $kegiatan->toleransi_hadir_menit = $schedule['toleransi_hadir_menit'];
 
                     return $kegiatan;
                 }
@@ -608,7 +592,8 @@ class AbsensiController extends Controller
 
     private function hitungStatus(
         string $jamMulai,
-        string $jamAbsen
+        string $jamAbsen,
+        ?int $toleransiMenit = null
     ): string {
 
         $mulai = Carbon::createFromFormat(
@@ -622,14 +607,17 @@ class AbsensiController extends Controller
         );
 
         // =================================================
-        // BATAS HADIR = 5 MENIT SETELAH JAM MULAI
+        // BATAS HADIR = toleransi menit setelah jam mulai
+        // (default 5 menit untuk kegiatan non-shalat)
         // =================================================
+
+        $toleransi = $toleransiMenit ?? 5;
 
         $batasHadir = $mulai
             ->copy()
-            ->addMinutes(5);
+            ->addMinutes($toleransi);
 
-        // Tepat 5 menit = HADIR
+        // Tepat waktu toleransi = HADIR
         if (
             $absen->lessThanOrEqualTo(
                 $batasHadir
@@ -638,7 +626,7 @@ class AbsensiController extends Controller
             return 'hadir';
         }
 
-        // Lebih dari 5 menit = TERLAMBAT
+        // Lebih dari toleransi = TERLAMBAT
         return 'terlambat';
     }
 

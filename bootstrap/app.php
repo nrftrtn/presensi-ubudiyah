@@ -20,7 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
     })
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Percayai semua reverse proxy (Cloudflare Tunnel & Nginx VPS)
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

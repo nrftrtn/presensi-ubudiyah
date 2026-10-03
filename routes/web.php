@@ -16,6 +16,7 @@ use App\Http\Controllers\AbsensiController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\RekapController;
 use App\Http\Controllers\LoginController;
+use App\Http\Controllers\PengaturanShalatController;
 
 use App\Services\PrayerTimeService;
 
@@ -241,28 +242,17 @@ Route::middleware('auth')->group(function () {
                 )
             ) {
 
-                $jamMulai = $prayerService->getPrayerTime(
+                $schedule = $prayerService->getPrayerScheduleDetails(
                     $kegiatan->nama_kegiatan,
                     $sekarang
                 );
 
-                if (!$jamMulai) {
+                if (!$schedule || !$schedule['status_aktif']) {
                     continue;
                 }
 
-                $mulai = Carbon::createFromFormat(
-                    'H:i:s',
-                    $jamMulai,
-                    'Asia/Jakarta'
-                );
-
-                /*
-                 * Kegiatan shalat dianggap aktif
-                 * sampai 10 menit setelah waktu mulai.
-                 */
-                $selesai = $mulai
-                    ->copy()
-                    ->addMinutes(10);
+                $mulai = $schedule['waktu_mulai_presensi'];
+                $selesai = $schedule['waktu_tutup_scan'];
 
                 if (
                     $sekarang->between(
@@ -270,14 +260,9 @@ Route::middleware('auth')->group(function () {
                         $selesai
                     )
                 ) {
-
-                    $kegiatan->jam_mulai = $jamMulai;
-
-                    $kegiatan->jam_selesai =
-                        $selesai->format('H:i:s');
-
+                    $kegiatan->jam_mulai = $schedule['jam_mulai_presensi'];
+                    $kegiatan->jam_selesai = $schedule['jam_tutup_scan'];
                     $kegiatanAktif = $kegiatan;
-
                     break;
                 }
 
@@ -582,6 +567,21 @@ Route::middleware('auth')->group(function () {
         '/rekap/pdf',
         [RekapController::class, 'pdf']
     );
+
+
+    // =================================================
+    // PENGATURAN SHALAT
+    // =================================================
+
+    Route::get(
+        '/pengaturan-shalat',
+        [PengaturanShalatController::class, 'index']
+    )->name('pengaturan.shalat.index');
+
+    Route::post(
+        '/pengaturan-shalat',
+        [PengaturanShalatController::class, 'update']
+    )->name('pengaturan.shalat.update');
 
 
     // =================================================

@@ -32,4 +32,13 @@ class Absensi extends Model
     {
         return $this->belongsTo(Kegiatan::class);
     }
+
+    // =========================
+    // ACCESSOR FALLBACK
+    // =========================
+
+    public function getJamAbsenAttribute(): ?string
+    {
+        return $this->jam_masuk;
+    }
 }

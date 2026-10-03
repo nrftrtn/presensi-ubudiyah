@@ -254,6 +254,17 @@
         </a>
 
 
+        <!-- Pengaturan Shalat -->
+        <a href="/pengaturan-shalat"
+           class="{{ request()->is('pengaturan-shalat*') ? 'active' : '' }}">
+
+            <i class="fa fa-sliders-h"></i>
+
+            Pengaturan Shalat
+
+        </a>
+
+
         <hr style="border-color:rgba(255,255,255,0.2);">
 
 

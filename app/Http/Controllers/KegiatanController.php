@@ -44,31 +44,15 @@ class KegiatanController extends Controller
                     ->isPrayerActivity($kegiatan->nama_kegiatan)
             ) {
 
-                $jamMulai = $this->prayerTimeService
-                    ->getPrayerTime(
+                $schedule = $this->prayerTimeService
+                    ->getPrayerScheduleDetails(
                         $kegiatan->nama_kegiatan,
                         $sekarang
                     );
 
-                if ($jamMulai) {
-
-                    // Waktu mulai otomatis
-                    $kegiatan->jam_mulai = $jamMulai;
-
-                    // Shalat dianggap berlangsung 10 menit
-                    $mulai = Carbon::createFromFormat(
-                        'H:i:s',
-                        $jamMulai,
-                        'Asia/Jakarta'
-                    );
-
-                    $kegiatan->jam_selesai = $mulai
-                        ->copy()
-                        ->addMinutes(10)
-                        ->format('H:i:s');
-
-                    // Hari tidak lagi digunakan
-                    // untuk kegiatan shalat
+                if ($schedule) {
+                    $kegiatan->jam_mulai = $schedule['jam_mulai_presensi'];
+                    $kegiatan->jam_selesai = $schedule['jam_tutup_scan'];
                     $kegiatan->hari = null;
                 }
             }

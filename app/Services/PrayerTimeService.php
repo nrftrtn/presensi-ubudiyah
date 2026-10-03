@@ -118,9 +118,74 @@ class PrayerTimeService
     }
 
     /**
+     * Mengambil model pengaturan shalat terkait.
+     */
+    public function getSetting(string $nama): ?\App\Models\PengaturanShalat
+    {
+        $key = $this->normalisasiNama($nama);
+
+        try {
+            $settings = \App\Models\PengaturanShalat::getAllCached();
+            return $settings->get($key);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Mengambil detail jadwal presensi shalat lengkap dengan pengaturan jeda dan durasi jendela scan.
+     */
+    public function getPrayerScheduleDetails(string $nama, ?Carbon $date = null): ?array
+    {
+        $date = $date
+            ? $date->copy()->setTimezone($this->timezone)
+            : Carbon::now($this->timezone);
+
+        $jamAdzan = $this->getPrayerTime($nama, $date);
+        if (!$jamAdzan) {
+            return null;
+        }
+
+        $key = $this->normalisasiNama($nama);
+        $setting = $this->getSetting($key);
+
+        $delayAdzan = $setting ? (int) $setting->delay_adzan_menit : 10;
+        $toleransiHadir = $setting ? (int) $setting->toleransi_hadir_menit : ($key === 'subuh' ? 3 : 2);
+        $durasiJendela = $setting ? (int) $setting->durasi_jendela_menit : ($key === 'subuh' ? 7 : 5);
+        $statusAktif = $setting ? (bool) $setting->status_aktif : true;
+
+        $waktuAdzan = Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $date->format('Y-m-d') . ' ' . $jamAdzan,
+            $this->timezone
+        );
+
+        $mulaiPresensi = $waktuAdzan->copy()->addMinutes($delayAdzan);
+        $batasHadir = $mulaiPresensi->copy()->addMinutes($toleransiHadir);
+        $tutupScan = $mulaiPresensi->copy()->addMinutes($durasiJendela);
+
+        return [
+            'nama_shalat' => $key,
+            'label' => $setting?->label ?? ucfirst($key),
+            'status_aktif' => $statusAktif,
+            'jam_adzan' => $jamAdzan,
+            'delay_adzan_menit' => $delayAdzan,
+            'toleransi_hadir_menit' => $toleransiHadir,
+            'durasi_jendela_menit' => $durasiJendela,
+            'waktu_adzan' => $waktuAdzan,
+            'waktu_mulai_presensi' => $mulaiPresensi,
+            'waktu_batas_hadir' => $batasHadir,
+            'waktu_tutup_scan' => $tutupScan,
+            'jam_mulai_presensi' => $mulaiPresensi->format('H:i:s'),
+            'jam_batas_hadir' => $batasHadir->format('H:i:s'),
+            'jam_tutup_scan' => $tutupScan->format('H:i:s'),
+        ];
+    }
+
+    /**
      * Mengubah nama kegiatan menjadi nama waktu shalat.
      */
-    private function normalisasiNama(string $nama): string
+    public function normalisasiNama(string $nama): string
     {
         $nama = strtolower(trim($nama));
 

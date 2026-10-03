@@ -659,7 +659,7 @@
 
                 <td>
 
-                    {{ $item->jam_absen ?? '-' }}
+                    {{ $item->jam_masuk ?? '-' }}
 
                 </td>
 

@@ -152,7 +152,9 @@
 
                     <th>Tanggal</th>
 
-                    <th>Jam Absen</th>
+                    <th>Jam Masuk</th>
+
+                    <th>Jam Keluar</th>
 
                     <th>Status</th>
 
@@ -188,7 +190,11 @@
 
 
                         <td>
-                            {{ $item->jam_absen }}
+                            {{ $item->jam_masuk ?? '-' }}
+                        </td>
+
+                        <td>
+                            {{ $item->jam_keluar ?? '-' }}
                         </td>
 
 
